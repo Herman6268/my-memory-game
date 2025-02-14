@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cindy's Memory Challenge Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    .game-board {
+      /* 4 columns x 3 rows = 12 cards */
+      display: grid;
+      grid-template-columns: repeat(4, 150px);
+      grid-gap: 10px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    .card {
+      width: 150px;
+      height: 150px;
+      background-color: #3498db;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 50px;
+      color: white;
+      cursor: pointer;
+      border-radius: 10px;
+      user-select: none;
+      transition: background-color 0.3s;
+    }
+    .hidden {
+      background-color: #bdc3c7;
+      color: transparent;
+    }
+    .score-board,
+    .history {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Cindy's Memory Challenge Game</h1>
+  <button onclick="showHistoryPage()">View Full Score History</button>
+  <p><strong>Instructions:</strong></p>
+  <p>
+    1. Choose a category from the dropdown menu.<br>
+    2. Click the "Start Game" button to begin.<br>
+    3. Memorize the emojis for 10 seconds.<br>
+    4. After 10 seconds, the emojis will be hidden.<br>
+    5. Click on two cards to reveal them and try to find matching pairs.<br>
+    6. The game ends when all pairs are matched.<br>
+    7. Final Score = (6×10) – (Incorrect Pairs×5) – (Total Seconds/2).<br>
+    8. All scores are recorded and can be viewed later.
+  </p>
+
+  <label for="category">Choose Emoji Category:</label>
+  <select id="category">
+    <option value="fruits">Fruits</option>
+    <option value="food">Food</option>
+    <option value="transportation">Transportation</option>
+    <option value="animals">Animals</option>
+    <option value="stationery">Stationery</option>
+  </select>
+  <br><br>
+  <button onclick="startGame()">Start Game</button>
+  <button onclick="clearScores()">Clear Score History</button>
+  
+  <div class="game-board" id="gameBoard"></div>
+  
+  <div class="score-board">
+    <h2>Final Score: <span id="score">0</span></h2>
+    <h3>Time Taken: <span id="time">0</span> seconds</h3>
+    <h3>Incorrect Attempts: <span id="incorrect">0</span></h3>
+  </div>
+  
+  <script>
+    // Global game state variables
+    let startTime, incorrectAttempts, matchedPairs, flippedCards, canFlip;
+    
+    // Emoji lists for different categories
+    const emojiCategories = {
+      fruits: ["🍎", "🍌", "🍇", "🍓", "🍒", "🍑"],
+      food: ["🍔", "🍕", "🌭", "🍟", "🍣", "🍩"],
+      transportation: ["🚗", "🚕", "🚌", "🚎", "🚑", "🚲"],
+      animals: ["🐶", "🐱", "🐭", "🐰", "🦊", "🐻"],
+      stationery: ["✏️", "🖊️", "📏", "📐", "📎", "📌"]
+    };
+
+    // Function to start the game
+    function startGame() {
+      // Reset game state
+      incorrectAttempts = 0;
+      matchedPairs = 0;
+      flippedCards = [];
+      canFlip = false;
+      document.getElementById("score").textContent = "0";
+      document.getElementById("time").textContent = "0";
+      document.getElementById("incorrect").textContent = "0";
+      
+      // Get selected category and corresponding emoji list
+      const category = document.getElementById("category").value;
+      const emojiList = emojiCategories[category] || emojiCategories["fruits"];
+      
+      // Prepare the game board
+      const gameBoard = document.getElementById("gameBoard");
+      gameBoard.innerHTML = "";
+      
+      // Duplicate the emoji list to have pairs (total 12 cards)
+      let cardValues = emojiList.concat(emojiList);
+      // Shuffle the card values randomly
+      cardValues.sort(() => Math.random() - 0.5);
+      
+      // Create 12 cards
+      cardValues.forEach(value => {
+        const card = document.createElement("div");
+        card.classList.add("card");
+        // Show the emoji initially for memorization
+        card.textContent = value;
+        card.dataset.emoji = value;
+        card.dataset.matched = "false";
+        card.addEventListener("click", cardClicked);
+        gameBoard.appendChild(card);
+      });
+      
+      // Allow 10 seconds for memorization before hiding cards
+      setTimeout(() => {
+        const cards = document.querySelectorAll(".card");
+        cards.forEach(card => card.classList.add("hidden"));
+        // Enable card flipping and start game timer
+        canFlip = true;
+        startTime = Date.now();
+      }, 10000);
+    }
+    
+    // Function to handle card clicks
+    function cardClicked(event) {
+      if (!canFlip) return;
+      
+      const card = event.target;
+      // Ignore clicks on cards that are already matched or currently face up
+      if (card.dataset.matched === "true" || !card.classList.contains("hidden")) {
+        return;
+      }
+      
+      // Reveal the card by removing the "hidden" class
+      card.classList.remove("hidden");
+      flippedCards.push(card);
+      
+      // Check if two cards have been flipped
+      if (flippedCards.length === 2) {
+        canFlip = false; // Temporarily disable further clicks
+        if (flippedCards[0].dataset.emoji === flippedCards[1].dataset.emoji) {
+          // If they match, mark them as matched
+          flippedCards[0].dataset.matched = "true";
+          flippedCards[1].dataset.matched = "true";
+          flippedCards = [];
+          matchedPairs++;
+          canFlip = true;
+          // If all 6 pairs are matched, end the game
+          if (matchedPairs === 6) {
+            endGame();
+          }
+        } else {
+          // Incorrect match; record an incorrect attempt and update display
+          incorrectAttempts++;
+          document.getElementById("incorrect").textContent = incorrectAttempts;
+          // After a short delay, flip the cards back over
+          setTimeout(() => {
+            flippedCards.forEach(card => card.classList.add("hidden"));
+            flippedCards = [];
+            canFlip = true;
+          }, 1000);
+        }
+      }
+    }
+    
+    // Function to end the game and calculate the final score
+    function endGame() {
+      const endTime = Date.now();
+      const timeTaken = Math.floor((endTime - startTime) / 1000); // in seconds
+      
+      // Calculate score using:
+      // Score = (6 * 10) - (Incorrect Attempts * 5) - (Total Seconds / 2)
+      let finalScore = 60 - (incorrectAttempts * 5) - Math.floor(timeTaken / 2);
+      
+      document.getElementById("score").textContent = finalScore;
+      document.getElementById("time").textContent = timeTaken;
+      
+      // Save the score record in localStorage
+      const scoreHistory = JSON.parse(localStorage.getItem("scoreHistory")) || {};
+      const now = new Date();
+      const dateKey = now.toLocaleString();
+      scoreHistory[dateKey] = {
+        score: finalScore,
+        time: timeTaken,
+        incorrect: incorrectAttempts
+      };
+      localStorage.setItem("scoreHistory", JSON.stringify(scoreHistory));
+      
+      // Disable further card flips
+      canFlip = false;
+    }
+    
+    // Function to clear the stored score history
+    function clearScores() {
+      localStorage.removeItem("scoreHistory");
+      alert("Score history has been cleared!");
+    }
+    
+    // Function to display score history in a new window
+    function showHistoryPage() {
+      const scoreHistory = JSON.parse(localStorage.getItem("scoreHistory")) || {};
+      const historyWindow = window.open("", "Score History", "width=500,height=600");
+      let historyContent = `
+        <html>
+          <head>
+            <title>Score History</title>
+          </head>
+          <body>
+            <h1>Score History</h1>
+            <button onclick="window.close()">Return to Game</button>
+            <ul>
+      `;
+      
+      for (let date in scoreHistory) {
+        historyContent += `<li>${date}: Score ${scoreHistory[date].score}, Time ${scoreHistory[date].time}s, Incorrect ${scoreHistory[date].incorrect}</li>`;
+      }
+      historyContent += `
+            </ul>
+            <button onclick="window.close()">Return to Game</button>
+          </body>
+        </html>
+      `;
+      historyWindow.document.write(historyContent);
+      historyWindow.document.close();
+    }
+  </script>
+</body>
+</html>
